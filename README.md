@@ -21,6 +21,5 @@ make
 ```
 2. Pictures load/save from photos folder | **.bmp only**
 
-## Usage
-
-
+## Libraries
+This project uses the `stb_image` and `stb_image_write` single-file libraries.
