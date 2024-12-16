@@ -20,13 +20,13 @@ void runPicture(int m, std::string filename, float q) {
     std::string inputFilePath = "photos/" + filename;
     unsigned char* pixelData = stbi_load(inputFilePath.c_str(), &width, &height, &channels, 0);
     if (!pixelData) {
-        std::cerr << "Error: Unable to open file " << filename << std::endl;
+        std::cerr << "Error: Nepavyko atidaryti failo " << filename << std::endl;
         return;
     }
 
     // Print out image width and height
-    std::cout << "Image Width: " << width << std::endl;
-    std::cout << "Image Height: " << height << std::endl;
+    std::cout << "Nuotraukos plotis: " << width << std::endl;
+    std::cout << "Nuotraukos aukstis: " << height << std::endl;
 
 
     // Convert pixel data to binary
@@ -37,18 +37,76 @@ void runPicture(int m, std::string filename, float q) {
         }
     }
 
+    std::vector<bool> corruptedWithoutEncoding = introduceErrors(binaryData, q);
+
+    // Convert binary data to pixel data
+    std::vector<uint8_t> corruptedPixelData;
+    for (size_t i = 0; i < corruptedWithoutEncoding.size(); i += 8) {
+        uint8_t byte = 0;
+        for (int j = 0; j < 8; ++j) {
+            if (i + j < corruptedWithoutEncoding.size()) {
+                byte |= (corruptedWithoutEncoding[i + j] << (7 - j));
+            }
+        }
+        corruptedPixelData.push_back(byte);
+    }
+
+    // Create the output filename by appending "_corrupted" before the file extension
+    std::string corruptedFilename = filename;
+    size_t dotPos = corruptedFilename.find_last_of(".");
+    if (dotPos != std::string::npos) {
+        corruptedFilename.insert(dotPos, "_corrupted_q" + std::to_string(static_cast<int>(q * 100) / 100.0).substr(0, 4));
+    } else {
+        corruptedFilename += "_corrupted_q" + std::to_string(static_cast<int>(q * 100) / 100.0).substr(0, 4);
+    }
+    std::string corruptedFilePath = "photos/" + corruptedFilename;
+
+    // Write corrupted pixel data back to BMP file
+    if (!stbi_write_bmp(corruptedFilePath.c_str(), width, height, channels, corruptedPixelData.data())) {
+        std::cerr << "Error: Nepavyko sukurti isvesties failo" << std::endl;
+        stbi_image_free(pixelData);
+        return;
+    }
+
+    // Open the corrupted image
+    std::string openCommand = "start " + corruptedFilePath;
+    system(openCommand.c_str());
+
+    std::cout << "Tik per kanala siusta nuotrauka issaugota kaip " << corruptedFilename << std::endl;
+    
+
+
     // Measure the time taken to encode the binary data
     auto start = std::chrono::high_resolution_clock::now();
     std::vector<bool> encodedData = encodeMessage(binaryData, m);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
-    std::cout << "Encoding took " << duration.count() << " seconds." << std::endl;
+    std::cout << "Uzkodavimas truko " << duration.count() << " sekundes." << std::endl;
 
     // Introduce errors
     std::vector<bool> corruptedData = introduceErrors(encodedData, q);
 
+    int totalErrorsBefore = 0;
+    for (size_t i = 0; i < encodedData.size(); ++i) {
+        if (encodedData[i] != corruptedData[i]) {
+            ++totalErrorsBefore;
+        }
+    }
+
     // Decode the data
-    std::vector<bool> decodedData = decodeChunks(corruptedData, 1, m);
+    auto decodeStart = std::chrono::high_resolution_clock::now();
+    std::vector<bool> decodedData = decode(corruptedData, m);
+    auto decodeEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> decodeDuration = decodeEnd - decodeStart;
+    std::cout << "Dekodavimas truko  " << decodeDuration.count() << " sekundes." << std::endl;
+
+    int totalErrorsAfter = 0;
+    for (size_t i = 0; i < binaryData.size(); ++i) {
+        if (binaryData[i] != decodedData[i]) {
+            ++totalErrorsAfter;
+        }
+    }
+
 
     // Convert binary data back to pixel data
     std::vector<uint8_t> correctedPixelData;
@@ -64,21 +122,29 @@ void runPicture(int m, std::string filename, float q) {
 
     // Create the output filename by appending "_corrected" before the file extension
     std::string outputFilename = filename;
-    size_t dotPos = outputFilename.find_last_of(".");
+    dotPos = outputFilename.find_last_of(".");
     if (dotPos != std::string::npos) {
-        outputFilename.insert(dotPos, "_corrected");
+        outputFilename.insert(dotPos, "_corrected_m" + std::to_string(m) + "_q" + std::to_string(static_cast<int>(q * 100) / 100.0).substr(0, 4));
     } else {
-        outputFilename += "_corrected";
+        outputFilename += "_corrected_m" + std::to_string(m) + "_q" + std::to_string(static_cast<int>(q * 100) / 100.0).substr(0, 4);
     }
     std::string outputFilePath = "photos/" + outputFilename;
 
     // Write corrected pixel data back to BMP file
     if (!stbi_write_bmp(outputFilePath.c_str(), width, height, channels, correctedPixelData.data())) {
-        std::cerr << "Error: Unable to create output file" << std::endl;
+        std::cerr << "Error: Nepavyko sukurti isvesties failo." << std::endl;
         stbi_image_free(pixelData);
         return;
     }
 
+    // Open the corrected image
+    openCommand = "start " + outputFilePath;
+    system(openCommand.c_str());
+
+    std::cout << "Is viso buta klaidu: " << totalErrorsBefore << std::endl;
+    std::cout << "Istaisyta klaidu: " << totalErrorsBefore - totalErrorsAfter << std::endl;
+
     stbi_image_free(pixelData);
-    std::cout << "Corrected image saved as " << outputFilename << std::endl;
+    std::cout << "Koduota ir dekoduota nuotrauka issaugota kaip " << outputFilename << std::endl;
+    std::cout << "--------------------------------------------------" << std::endl;
 }

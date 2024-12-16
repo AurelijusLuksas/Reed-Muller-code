@@ -1,120 +1,112 @@
+#include <iostream>
 #include <vector>
 #include <cmath>
-#include <iostream>
-#include "decoder.h"
+#include <algorithm>
+#include <bitset>
+#include <thread>
+#include <mutex>
 
-// Recursive Fast Hadamard Transform
-void fastHadamardTransformRecursive(std::vector<int>& vec, size_t start, size_t end) {
-    if (end - start == 1) return; // Base case: single element
-
-    size_t mid = start + (end - start) / 2;
-    fastHadamardTransformRecursive(vec, start, mid); // first half
-    fastHadamardTransformRecursive(vec, mid, end);   // second half
-
-    for (size_t i = start; i < mid; ++i) {
-        int a = vec[i];
-        int b = vec[i + (mid - start)];
-        vec[i] = a + b;               // (sum)
-        vec[i + (mid - start)] = a - b; // (difference)
-    }
-}
-
-// Fast Hadamard Transform (driver)
-std::vector<int> fastHadamardTransform(const std::vector<bool>& message, int m) {
-    size_t N = 1 << m; // (2^m)
-    std::vector<int> vector(message.size());
-    for (size_t i = 0; i < message.size(); ++i) {
-        vector[i] = message[i] ? 1 : -1;
-    }
-
-    fastHadamardTransformRecursive(vector, 0, N);
-
-    return vector;
-}
-
-std::vector<bool> reverseVector(const std::vector<bool>& vector) {
-    std::vector<bool> reversed;
-    for (int i = vector.size() - 1; i >= 0; --i) {
-        reversed.push_back(vector[i]);
-    }
-    return reversed;
-}
-
-std::vector<bool> intToUnpackedBitList(int n) {
-    if (n < 0) {
-        throw std::invalid_argument("n must be greater than or equal to 0");
-    }
-    int length = 0;
-    int temp = n;
-    while (temp > 0) {
-        length++;
-        temp >>= 1;
-    }
-    std::vector<bool> bitArray(length, false);
-    for (int i = length - 1; i >= 0; --i) {
-        bitArray[i] = n % 2;
-        n /= 2;
-    }
-    return bitArray;
-}
-
-std::pair<int, int> findLargestComponentPosition(const std::vector<int>& vector) {
-    int max_value = std::abs(vector[0]);
-    int position = 0;
-    int sign = (vector[0] > 0) ? 1 : -1;
-    for (size_t i = 1; i < vector.size(); ++i) {
-        if (std::abs(vector[i]) > max_value) {
-            max_value = std::abs(vector[i]);
-            sign = (vector[i] > 0) ? 1 : -1;
-            position = i;
+// Step 1: Replace 0 with -1 in the received vector
+void replaceZeros(std::vector<int> &w) {
+    for (auto &bit : w) {
+        if (bit == 0) {
+            bit = -1;
         }
     }
-    return {position, sign};
 }
 
-std::vector<bool> decode(std::vector<bool> message, int r, int m) {
-    std::vector<int> transformedMessage;
-    transformedMessage = fastHadamardTransform(message, m);
-    std::pair<int, int> result = findLargestComponentPosition(transformedMessage);
-    int position = result.first;
-    int sign = result.second;
+// Fast Hadamard Matrix product H ^ m
+std::vector<std::vector<int>> hadamardMatrix(int m) {
+    int size = 1 << m; // 2^m
+    std::vector<std::vector<int>> H(size, std::vector<int>(size, 1));
 
-    std::vector<bool> positionInBits = intToUnpackedBitList(position);
-    positionInBits = reverseVector(positionInBits);
-    while (positionInBits.size() < static_cast<size_t>(m + 1)) {
-        positionInBits.push_back(0);
-    }
-    if (sign == 1) {
-        positionInBits.insert(positionInBits.begin(), 1);
-        positionInBits.pop_back();
-    } else {
-        positionInBits.insert(positionInBits.begin(), 0);
-        positionInBits.pop_back();
-    }
-
-    return positionInBits;
-}
-
-std::vector<std::vector<bool>> splitMessageForDecoding(const std::vector<bool>& message, size_t chunkSize) {
-    std::vector<std::vector<bool>> chunks;
-    size_t appendedBits = 0; 
-    for (size_t i = 0; i < message.size(); i += chunkSize) {
-        std::vector<bool> chunk(message.begin() + i, message.begin() + std::min(message.size(), i + chunkSize));
-        while (chunk.size() < chunkSize) { 
-            chunk.push_back(0);
-            appendedBits++;
+    for (int i = 1; i < size; i <<= 1) {
+        for (int j = 0; j < i; ++j) {
+            for (int k = 0; k < i; ++k) {
+                H[j + i][k] = H[j][k];
+                H[j][k + i] = H[j][k];
+                H[j + i][k + i] = -H[j][k];
+            }
         }
-        chunks.push_back(chunk);
     }
-    return chunks;
+    return H;
 }
 
-std::vector<bool> decodeChunks(std::vector<bool> message, int r, int m) {
-    std::vector<bool> decoded;
-    std::vector<std::vector<bool>> chunks = splitMessageForDecoding(message, 1 << m);
-    for (const auto& chunk : chunks) {
-        std::vector<bool> decodedChunk = decode(chunk, r, m);
-        decoded.insert(decoded.end(), decodedChunk.begin(), decodedChunk.end());
+// Step 2: Multiply the received vector by the Hadamard matrix
+std::vector<int> multiplyByHadamardMatrix(const std::vector<int> &w, const std::vector<std::vector<int>> &H) {
+    int n = w.size();
+    std::vector<int> wm(n, 0);
+
+    // Matrix multiplication w * H = wm
+    for (int j = 0; j < n; ++j) {
+        int sum = 0;
+        for (int i = 0; i < n; ++i) {
+            sum += w[i] * H[j][i];
+        }
+        wm[j] = sum;
     }
-    return decoded;
+    return wm;
+}
+
+// Step 3: Find the largest component of the vector
+std::pair<int, std::vector<bool>> findLargestComponent(const std::vector<int> &wm, int m) {
+    int maxPos = 0;
+    int maxVal = abs(wm[0]);
+
+    // Find the position j of the largest component of the vector
+    for (std::vector<int>::size_type i = 1; i < wm.size(); ++i) {
+        if (abs(wm[i]) > maxVal) {
+            maxVal = abs(wm[i]);
+            maxPos = i;
+        }
+    }
+
+    // Decode the largest component
+    std::vector<bool> binaryIndex(m);
+    for (int i = 0; i < m; ++i) {
+        binaryIndex[i] = (maxPos >> i) & 1;
+    }
+
+    int bit = (wm[maxPos] > 0) ? 1 : 0; // Determine the sign of the largest component
+
+    return {bit, binaryIndex};
+}
+
+std::vector<bool> decodeChunk(const std::vector<bool> &chunk, int m, const std::vector<std::vector<int>> &H) {
+    // Convert chunk to integer vector and replace 0 with -1
+    std::vector<int> w(chunk.begin(), chunk.end());
+    replaceZeros(w);
+
+    auto wm = multiplyByHadamardMatrix(w, H);
+    auto [bit, index] = findLargestComponent(wm, m);
+
+    // Construct the decoded message
+    std::vector<bool> decodedMessage;
+    decodedMessage.push_back(bit);
+    for (int i = 0; i < m; ++i) {
+        decodedMessage.push_back(index[i]);
+    }
+
+    return decodedMessage;
+}
+
+std::vector<bool> decode(const std::vector<bool> &receivedMessage, int m) {
+    int n = 1 << m; // 2^m
+    std::vector<bool> decodedMessage;
+
+    // Compute the Hadamard matrix once
+    auto H = hadamardMatrix(m);
+
+    // size_t numChunks = receivedMessage.size() / n;
+
+    // Split the received message into chunks of size n
+    for (size_t i = 0; i < receivedMessage.size(); i += n) {
+        std::vector<bool> chunk(receivedMessage.begin() + i, receivedMessage.begin() + std::min(i + n, receivedMessage.size()));
+
+        // Decode each chunk
+        auto decodedChunk = decodeChunk(chunk, m, H);
+        decodedMessage.insert(decodedMessage.end(), decodedChunk.begin(), decodedChunk.end());
+    }
+
+    return decodedMessage;
 }
