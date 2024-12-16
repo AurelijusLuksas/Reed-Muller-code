@@ -1,13 +1,11 @@
 #include <iostream>
+#include <cstdint>
 #include <vector>
 #include <cmath>
 #include <algorithm>
-#include <bitset>
-#include <thread>
-#include <mutex>
 
 // Step 1: Replace 0 with -1 in the received vector
-void replaceZeros(std::vector<int> &w) {
+void replaceZeros(std::vector<int8_t> &w) {
     for (auto &bit : w) {
         if (bit == 0) {
             bit = -1;
@@ -16,9 +14,9 @@ void replaceZeros(std::vector<int> &w) {
 }
 
 // Fast Hadamard Matrix product H ^ m
-std::vector<std::vector<int>> hadamardMatrix(int m) {
+std::vector<std::vector<int8_t>> hadamardMatrix(int m) {
     int size = 1 << m; // 2^m
-    std::vector<std::vector<int>> H(size, std::vector<int>(size, 1));
+    std::vector<std::vector<int8_t>> H(size, std::vector<int8_t>(size, 1));
 
     for (int i = 1; i < size; i <<= 1) {
         for (int j = 0; j < i; ++j) {
@@ -33,9 +31,8 @@ std::vector<std::vector<int>> hadamardMatrix(int m) {
 }
 
 // Step 2: Multiply the received vector by the Hadamard matrix
-std::vector<int> multiplyByHadamardMatrix(const std::vector<int> &w, const std::vector<std::vector<int>> &H) {
+void multiplyByHadamardMatrix(const std::vector<int8_t> &w, const std::vector<std::vector<int8_t>> &H, std::vector<int> &wm) {
     int n = w.size();
-    std::vector<int> wm(n, 0);
 
     // Matrix multiplication w * H = wm
     for (int j = 0; j < n; ++j) {
@@ -45,11 +42,10 @@ std::vector<int> multiplyByHadamardMatrix(const std::vector<int> &w, const std::
         }
         wm[j] = sum;
     }
-    return wm;
 }
 
 // Step 3: Find the largest component of the vector
-std::pair<int, std::vector<bool>> findLargestComponent(const std::vector<int> &wm, int m) {
+std::pair<int8_t, std::vector<uint8_t>> findLargestComponent(const std::vector<int> &wm, int m) {
     int maxPos = 0;
     int maxVal = abs(wm[0]);
 
@@ -62,7 +58,7 @@ std::pair<int, std::vector<bool>> findLargestComponent(const std::vector<int> &w
     }
 
     // Decode the largest component
-    std::vector<bool> binaryIndex(m);
+    std::vector<uint8_t> binaryIndex(m);
     for (int i = 0; i < m; ++i) {
         binaryIndex[i] = (maxPos >> i) & 1;
     }
@@ -72,16 +68,16 @@ std::pair<int, std::vector<bool>> findLargestComponent(const std::vector<int> &w
     return {bit, binaryIndex};
 }
 
-std::vector<bool> decodeChunk(const std::vector<bool> &chunk, int m, const std::vector<std::vector<int>> &H) {
+std::vector<uint8_t> decodeChunk(const std::vector<uint8_t> &chunk, int m, const std::vector<std::vector<int8_t>> &H) {
     // Convert chunk to integer vector and replace 0 with -1
-    std::vector<int> w(chunk.begin(), chunk.end());
+    std::vector<int8_t> w(chunk.begin(), chunk.end());
     replaceZeros(w);
-
-    auto wm = multiplyByHadamardMatrix(w, H);
+    std::vector<int> wm(w.size());
+    multiplyByHadamardMatrix(w, H, wm);
     auto [bit, index] = findLargestComponent(wm, m);
 
     // Construct the decoded message
-    std::vector<bool> decodedMessage;
+    std::vector<uint8_t> decodedMessage;
     decodedMessage.push_back(bit);
     for (int i = 0; i < m; ++i) {
         decodedMessage.push_back(index[i]);
@@ -90,18 +86,16 @@ std::vector<bool> decodeChunk(const std::vector<bool> &chunk, int m, const std::
     return decodedMessage;
 }
 
-std::vector<bool> decode(const std::vector<bool> &receivedMessage, int m) {
+std::vector<uint8_t> decode(const std::vector<uint8_t> &receivedMessage, int m) {
     int n = 1 << m; // 2^m
-    std::vector<bool> decodedMessage;
+    std::vector<uint8_t> decodedMessage;
 
     // Compute the Hadamard matrix once
     auto H = hadamardMatrix(m);
 
-    // size_t numChunks = receivedMessage.size() / n;
-
     // Split the received message into chunks of size n
     for (size_t i = 0; i < receivedMessage.size(); i += n) {
-        std::vector<bool> chunk(receivedMessage.begin() + i, receivedMessage.begin() + std::min(i + n, receivedMessage.size()));
+        std::vector<uint8_t> chunk(receivedMessage.begin() + i, receivedMessage.begin() + std::min(i + n, receivedMessage.size()));
 
         // Decode each chunk
         auto decodedChunk = decodeChunk(chunk, m, H);

@@ -1,10 +1,12 @@
 #include <bitset>
 #include <vector>
 #include "stringOperations.h"
+#include <cstdint>
+
 
 // Convert a string to a binary vector
-std::vector<bool> stringToBinary(const std::string& text) {
-    std::vector<bool> binaryMessage;
+std::vector<uint8_t> stringToBinary(const std::string& text) {
+    std::vector<uint8_t> binaryMessage;
     for (char c : text) {
         std::bitset<8> binary(c);
         for (int j = 0; j < 8; j++) {
@@ -15,9 +17,9 @@ std::vector<bool> stringToBinary(const std::string& text) {
 }
 
 // Convert a binary vector back to a string
-std::string binaryToString(const std::vector<bool>& binaryMessage) {
+std::string binaryToString(const std::vector<uint8_t>& binaryMessage) {
     std::string text;
-    std::vector<bool> paddedBinaryMessage = binaryMessage;
+    std::vector<uint8_t> paddedBinaryMessage = binaryMessage;
     
     // Padding to make the size a multiple of 8
     while (paddedBinaryMessage.size() % 8 != 0) {

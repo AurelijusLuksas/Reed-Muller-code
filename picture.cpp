@@ -12,6 +12,7 @@
 #include "stringOperations.h"
 #include "channel.h"
 #include "picture.h"
+#include <cstdint>
 
 void runPicture(int m, std::string filename, float q) {
     // Read BMP file
@@ -30,14 +31,14 @@ void runPicture(int m, std::string filename, float q) {
 
 
     // Convert pixel data to binary
-    std::vector<bool> binaryData;
+    std::vector<uint8_t> binaryData;
     for (int i = 0; i < width * height * channels; ++i) {
         for (int j = 7; j >= 0; --j) {
             binaryData.push_back((pixelData[i] >> j) & 1);
         }
     }
 
-    std::vector<bool> corruptedWithoutEncoding = introduceErrors(binaryData, q);
+    std::vector<uint8_t> corruptedWithoutEncoding = introduceErrors(binaryData, q);
 
     // Convert binary data to pixel data
     std::vector<uint8_t> corruptedPixelData;
@@ -78,13 +79,13 @@ void runPicture(int m, std::string filename, float q) {
 
     // Measure the time taken to encode the binary data
     auto start = std::chrono::high_resolution_clock::now();
-    std::vector<bool> encodedData = encodeMessage(binaryData, m);
+    std::vector<uint8_t> encodedData = encodeMessage(binaryData, m);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
     std::cout << "Uzkodavimas truko " << duration.count() << " sekundes." << std::endl;
 
     // Introduce errors
-    std::vector<bool> corruptedData = introduceErrors(encodedData, q);
+    std::vector<uint8_t> corruptedData = introduceErrors(encodedData, q);
 
     int totalErrorsBefore = 0;
     for (size_t i = 0; i < encodedData.size(); ++i) {
@@ -95,7 +96,7 @@ void runPicture(int m, std::string filename, float q) {
 
     // Decode the data
     auto decodeStart = std::chrono::high_resolution_clock::now();
-    std::vector<bool> decodedData = decode(corruptedData, m);
+    std::vector<uint8_t> decodedData = decode(corruptedData, m);
     auto decodeEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> decodeDuration = decodeEnd - decodeStart;
     std::cout << "Dekodavimas truko  " << decodeDuration.count() << " sekundes." << std::endl;

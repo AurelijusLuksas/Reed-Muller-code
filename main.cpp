@@ -9,34 +9,35 @@
 #include "stringOperations.h"
 #include "channel.h"
 #include "picture.h"
+#include <cstdint>
 
 void runText(int m, std::string text, float q) {
 
     // Convert text to binary
-    std::vector<bool> binaryMessage = stringToBinary(text);
+    std::vector<uint8_t> binaryMessage = stringToBinary(text);
     std::cout << "--------------------------------------------------" << std::endl;
     std::cout << "Dvejetaine zinute: ";
     for (size_t i = 0; i < binaryMessage.size(); i++) {
-        std::cout << binaryMessage[i];
+        std::cout << static_cast<int>(binaryMessage[i]); // Cast to int for correct display
         if ((i + 1) % 4 == 0) {
             std::cout << " ";
         }
     }
     std::cout << std::endl;
     
-    std::vector<bool> curruptedWithoutEncoding = introduceErrors(binaryMessage, q);
+    std::vector<uint8_t> curruptedWithoutEncoding = introduceErrors(binaryMessage, q);
 
     std::string TextWithoutEncoding = binaryToString(curruptedWithoutEncoding);
 
     // Encoding message
     auto start = std::chrono::high_resolution_clock::now();
-    std::vector<bool> codedMessage = encodeMessage(binaryMessage, m);
+    std::vector<uint8_t> codedMessage = encodeMessage(binaryMessage, m);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
 
     std::cout << "Uzkodavimas uztruko: " << duration.count() << " sekundes" << std::endl << std::endl;
 
-    std::vector<bool> corruptedMessage = introduceErrors(codedMessage, q);
+    std::vector<uint8_t> corruptedMessage = introduceErrors(codedMessage, q);
 
     int totalErrors = 0;
     for (size_t i = 0; i < codedMessage.size(); ++i) {
@@ -47,15 +48,18 @@ void runText(int m, std::string text, float q) {
 
     // Decoding the chunks
     auto decodeStart = std::chrono::high_resolution_clock::now();
-    std::vector<bool> decodedMessage = decode(corruptedMessage, m);
+    std::vector<uint8_t> decodedMessage = decode(corruptedMessage, m);
     auto decodeEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> decodeDuration = decodeEnd - decodeStart;
     decodedMessage.resize(binaryMessage.size());
     std::cout << "Dekoduota dvejetaine zinute: ";
-    for (bool bit : decodedMessage) {
-        std::cout << bit;
+    for (size_t i = 0; i < decodedMessage.size(); i++) {
+        std::cout << static_cast<int>(decodedMessage[i]); // Cast to int for correct display
+        if ((i + 1) % 4 == 0) {
+            std::cout << " ";
+        }
     }
-    
+
     std::cout << "\nDekodavimas uztruko: " << decodeDuration.count() << " sekundes" << std::endl;
 
     std::string decodedText = binaryToString(decodedMessage);
@@ -72,25 +76,26 @@ void runText(int m, std::string text, float q) {
 
 }
 
-void runVector(int m, std::vector<bool> vector, float q) {
+void runVector(int m, std::vector<uint8_t> vector, float q) {
     std::cout << "--------------------------------------------------" << std::endl;
     std::cout << "Pradinis vektorius: ";
     for (size_t i = 0; i < vector.size(); i++) {
-        std::cout << vector[i];
+        std::cout << static_cast<int>(vector[i]);
         if ((i + 1) % 4 == 0) {
             std::cout << " ";
         }
     }
+
     std::cout << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
-    std::vector<bool> codedMessage = encodeMessage(vector, m);
+    std::vector<uint8_t> codedMessage = encodeMessage(vector, m);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
     std::cout << "Uzkodavimas uztruko: " << duration.count() << " sekundes" << std::endl;
     std::cout << "Uzkoduoto vektorio ilgis: " << codedMessage.size() << std::endl;
 
-    std::vector<bool> corruptedMessage = introduceErrors(codedMessage, q);
+    std::vector<uint8_t> corruptedMessage = introduceErrors(codedMessage, q);
     int totalErrorsBefore = 0;
 
     for (size_t i = 0; i < codedMessage.size(); ++i) {
@@ -101,7 +106,7 @@ void runVector(int m, std::vector<bool> vector, float q) {
 
     std::cout <<"Uzkoduotas vektorius: ";
     for (size_t i = 0; i < codedMessage.size(); i++) {
-        std::cout << codedMessage[i];
+        std::cout << static_cast<int>(codedMessage[i]);
         if ((i + 1) % 4 == 0) {
             std::cout << " ";
         }
@@ -111,7 +116,7 @@ void runVector(int m, std::vector<bool> vector, float q) {
 
     std::cout << "Is kanalo gautas vektorius: ";
     for (size_t i = 0; i < corruptedMessage.size(); i++) {
-        std::cout << corruptedMessage[i];
+        std::cout << static_cast<int>(corruptedMessage[i]);
         if ((i + 1) % 4 == 0) {
             std::cout << " ";
         }
@@ -144,13 +149,13 @@ void runVector(int m, std::vector<bool> vector, float q) {
 
 
     auto decodeStart = std::chrono::high_resolution_clock::now();
-    std::vector<bool> decodedMessage = decode(corruptedMessage, m);
+    std::vector<uint8_t> decodedMessage = decode(corruptedMessage, m);
     auto decodeEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> decodeDuration = decodeEnd - decodeStart;
     decodedMessage.resize(vector.size());
     std::cout << "Dekoduotas vektorius: ";
     for (size_t i = 0; i < decodedMessage.size(); i++) {
-        std::cout << decodedMessage[i];
+        std::cout << static_cast<int>(decodedMessage[i]);
         if ((i + 1) % 4 == 0) {
             std::cout << " ";
         }
@@ -165,7 +170,7 @@ void runVector(int m, std::vector<bool> vector, float q) {
 int main() {
     std::string text;
     std::string filename;
-    std::vector<bool> vector;
+    std::vector<uint8_t> vector;
     int m;
     float q;
     std::string input;              
