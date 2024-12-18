@@ -183,7 +183,7 @@ int main() {
 
         int choice;
         std::cin >> choice;
-
+        std::string line;
         switch (choice) {
             case 1:
             std::cout << "Iveskite m: ";
@@ -230,8 +230,16 @@ int main() {
                 }
             }
             
-            std::cout << "Iveskite zinute: ";
-            std::cin >> text;
+            std::cout << "Iveskite zinute (iveskite END kad baigti): ";
+            std::cin.ignore(); // Clear the input buffer
+            text.clear();
+            while (true) {
+                std::getline(std::cin, line);
+                if (line == "END") {
+                    break;
+                }
+                text += line + "\n";
+            }
 
             std::cout << "Iveskite klaidu procenta: ";
             std::cin >> input2;
