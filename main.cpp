@@ -104,13 +104,13 @@ void runVector(int m, std::vector<uint8_t> vector, float q) {
         }
     }
 
-    std::cout <<"Uzkoduotas vektorius: ";
-    for (size_t i = 0; i < codedMessage.size(); i++) {
-        std::cout << static_cast<int>(codedMessage[i]);
-        if ((i + 1) % 4 == 0) {
-            std::cout << " ";
-        }
-    }
+    // std::cout <<"Uzkoduotas vektorius: ";
+    // for (size_t i = 0; i < codedMessage.size(); i++) {
+    //     std::cout << static_cast<int>(codedMessage[i]);
+    //     if ((i + 1) % 4 == 0) {
+    //         std::cout << " ";
+    //     }
+    // }
 
     std::cout << std::endl;
 
