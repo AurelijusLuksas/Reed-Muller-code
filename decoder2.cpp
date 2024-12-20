@@ -1,90 +1,96 @@
-#include <iostream>
-#include <cstdint>
 #include <vector>
 #include <cmath>
+#include <iostream>
+#include "decoder.h"
+#include <cstdint>
 #include <algorithm>
+#include <chrono>
 
-// Step 1: Replace 0 with -1 in the received vector
-void replaceZeros(std::vector<int8_t> &w) {
-    for (auto &bit : w) {
-        bit = (bit == 0) ? -1 : bit; // Replace 0 with -1
+// Recursive Fast Hadamard Transform
+void fastHadamardTransformsRecursive(std::vector<int>& vec, size_t start, size_t end) {
+    if (end - start == 1) return; // Base case: single element
+
+    size_t mid = start + (end - start) / 2;
+    fastHadamardTransformsRecursive(vec, start, mid); // first half
+    fastHadamardTransformsRecursive(vec, mid, end);   // second half
+
+    for (size_t i = start; i < mid; ++i) {
+        int a = vec[i];
+        int b = vec[i + (mid - start)];
+        vec[i] = a + b;               // (sum)
+        vec[i + (mid - start)] = a - b; // (difference)
     }
 }
 
-// Fast Hadamard Transform (in-place)
-void hadamardTransform(std::vector<int>& vec) {
-    int n = vec.size();
-    for (int len = 1; len < n; len *= 2) {
-        for (int i = 0; i < n; i += 2 * len) {
-            for (int j = 0; j < len; ++j) {
-                int a = vec[i + j];
-                int b = vec[i + j + len];
-                vec[i + j] = a + b;
-                vec[i + j + len] = a - b;
-            }
+// Fast Hadamard Transform (driver)
+std::vector<int> fastHadamardTransforms(const std::vector<uint8_t>& message, int m) {
+    size_t N = 1 << m; // (2^m)
+    std::vector<int> vector(message.size());
+    for (size_t i = 0; i < message.size(); ++i) {
+        vector[i] = message[i] ? 1 : -1;
+    }
+
+    fastHadamardTransformsRecursive(vector, 0, N);
+
+    return vector;
+}
+
+std::vector<uint8_t> reverseVector(const std::vector<uint8_t>& vector) {
+    std::vector<uint8_t> reversed = vector;
+    std::reverse(reversed.begin(), reversed.end());
+    return reversed;
+}
+
+std::vector<uint8_t> decodeChunks(std::vector<uint8_t> message, int m) {
+    std::vector<int> transformedMessage = fastHadamardTransforms(message, m);
+    
+    // Find the largest component position and sign
+    int largestValue = 0;
+    int position = 0;
+    for (size_t i = 0; i < transformedMessage.size(); ++i) {
+        int absValue = transformedMessage[i] < 0 ? -transformedMessage[i] : transformedMessage[i];
+        if (absValue > largestValue) {
+            largestValue = absValue;
+            position = i;
         }
     }
-}
+    int sign = transformedMessage[position] >= 0 ? 1 : 0;
 
-// Step 2: Multiply the received vector by the Hadamard transform
-std::vector<int> applyHadamardTransform(const std::vector<int8_t>& w) {
-    // Convert w to an integer vector for arithmetic operations
-    std::vector<int> wm(w.begin(), w.end());
-
-    // Perform the in-place Hadamard transform
-    hadamardTransform(wm);
-
-    return wm;
-}
-
-// Step 3: Find the largest component of the vector
-std::pair<int8_t, std::vector<uint8_t>> findLargestComponent(const std::vector<int>& wm, int m) {
-    auto maxIt = std::max_element(wm.begin(), wm.end(), [](int a, int b) {
-        return std::abs(a) < std::abs(b);
-    });
-
-    int maxPos = std::distance(wm.begin(), maxIt);
-    int bit = (*maxIt > 0) ? 1 : 0;
-
-    std::vector<uint8_t> binaryIndex(m);
+    // Convert position to binary and reverse it
+    std::vector<uint8_t> positionInBits(m, 0);
     for (int i = 0; i < m; ++i) {
-        binaryIndex[i] = (maxPos >> i) & 1;
+        positionInBits[i] = (position >> i) & 1;
     }
 
-    return {bit, binaryIndex};
+    // Add the sign bit to the result
+    positionInBits.insert(positionInBits.begin(), sign);
+
+    return positionInBits;
 }
 
-// Decode a chunk of the received message
-std::vector<uint8_t> decodeChunk(const std::vector<uint8_t> &chunk, int m) {
-    // Convert chunk to integer vector and replace 0 with -1
-    std::vector<int8_t> w(chunk.begin(), chunk.end());
-    replaceZeros(w);
-
-    std::vector<int> wm = applyHadamardTransform(w);
-
-    auto [bit, index] = findLargestComponent(wm, m);
-
-    // Construct the decoded message
-    std::vector<uint8_t> decodedMessage;
-    decodedMessage.push_back(bit);
-    decodedMessage.insert(decodedMessage.end(), index.begin(), index.end());
-    
-    return decodedMessage;
-}
-
-// Decode the entire received message
-std::vector<uint8_t> decode(const std::vector<uint8_t> &receivedMessage, int m) {
-    int n = 1 << m; // 2^m
-    std::vector<uint8_t> decodedMessage;
-
-    // Split the received message into chunks of size n
-    for (size_t i = 0; i < receivedMessage.size(); i += n) {
-        std::vector<uint8_t> chunk(receivedMessage.begin() + i, receivedMessage.begin() + std::min(i + n, receivedMessage.size()));
-
-        // Decode each chunk
-        auto decodedChunk = decodeChunk(chunk, m);
-        decodedMessage.insert(decodedMessage.end(), decodedChunk.begin(), decodedChunk.end());
+std::vector<std::vector<uint8_t>> splitMessageForDecoding(const std::vector<uint8_t>& message, size_t chunkSize) {
+    std::vector<std::vector<uint8_t>> chunks;
+    for (size_t i = 0; i < message.size(); i += chunkSize) {
+        std::vector<uint8_t> chunk(message.begin() + i, message.begin() + std::min(message.size(), i + chunkSize));
+        chunk.resize(chunkSize, 0);
+        chunks.push_back(chunk);
     }
+    return chunks;
+}
 
-    return decodedMessage;
+std::vector<uint8_t> decode(std::vector<uint8_t> message, int m) {
+    std::vector<uint8_t> decoded;
+    decoded.reserve(message.size());
+
+    auto chunks = splitMessageForDecoding(message, 1 << m);
+
+    for (const auto& chunk : chunks) {
+        // auto start = std::chrono::high_resolution_clock::now();
+        auto decodedChunk = decodeChunks(chunk, m);
+        // auto end = std::chrono::high_resolution_clock::now();
+        // std::chrono::duration<double> elapsed = end - start;
+        // std::cout << "Time taken to decode chunk: " << elapsed.count() << " seconds" << std::endl;
+        decoded.insert(decoded.end(), decodedChunk.begin(), decodedChunk.end());
+    }
+    return decoded;
 }

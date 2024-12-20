@@ -1,106 +1,173 @@
-#include <iostream>
-#include <cstdint>
 #include <vector>
 #include <cmath>
+#include <iostream>
+#include "decoder.h"
+#include <cstdint>
 #include <algorithm>
+#include <chrono>
+#include <unordered_map>
 
-// Step 1: Replace 0 with -1 in the received vector
-void replaceZeros(std::vector<int8_t> &w) {
-    for (auto &bit : w) {
-        bit = bit * 2 - 1; // Replace 0 with -1
+// Helper functions
+std::vector<std::vector<uint8_t>> splitMessageForDecoding(const std::vector<uint8_t>& message, int m) {
+    size_t numChunks = (message.size() + m - 1) / m;
+    std::vector<std::vector<uint8_t>> chunks(numChunks, std::vector<uint8_t>(m, 0));
+
+    for (size_t i = 0; i < message.size(); ++i) {
+        chunks[i / m][i % m] = message[i];
     }
+
+    return chunks;
 }
 
-// Fast Hadamard Matrix product H ^ m
-std::vector<std::vector<int8_t>> hadamardMatrix(int m) {
-    int size = 1 << m; // 2^m
-    std::vector<std::vector<int8_t>> H(size, std::vector<int8_t>(size, 1));
 
-    for (int i = 1; i < size; i <<= 1) {
-        for (int j = 0; j < i; ++j) {
-            for (int k = 0; k < i; ++k) {
-                H[j + i][k] = H[j][k];
-                H[j][k + i] = H[j][k];
-                H[j + i][k + i] = -H[j][k];
+std::vector<int> convertToPm1(const std::vector<uint8_t>& message) {
+    std::vector<int> pm1(message.size());
+    for (size_t i = 0; i < message.size(); ++i) {
+        pm1[i] = message[i] ? 1 : -1;
+    }
+    return pm1;
+}
+
+
+
+std::vector<std::vector<int>> generateUnitaryMatrix(int n) {
+    if (n < 1) {
+        throw std::invalid_argument("n must be greater than 0");
+    }
+    std::vector<std::vector<int>> matrix(n, std::vector<int>(n, 0));
+    for (int i = 0; i < n; ++i) {
+        matrix[i][i] = 1;
+    }
+    return matrix;
+}
+
+std::vector<std::vector<int>> generateKroneckerProduct(const std::vector<std::vector<int>>& A, const std::vector<std::vector<int>>& B) {
+    size_t aRows = A.size(), aCols = A[0].size();
+    size_t bRows = B.size(), bCols = B[0].size();
+
+    std::vector<std::vector<int>> result(aRows * bRows, std::vector<int>(aCols * bCols));
+
+    for (size_t i = 0; i < aRows; ++i) {
+        for (size_t j = 0; j < aCols; ++j) {
+            int value = A[i][j];
+            for (size_t k = 0; k < bRows; ++k) {
+                for (size_t l = 0; l < bCols; ++l) {
+                    result[i * bRows + k][j * bCols + l] = value * B[k][l];
+                }
             }
         }
     }
-    return H;
+    return result;
 }
 
-// Step 2: Multiply the received vector by the Hadamard matrix
-void multiplyByHadamardMatrix(const std::vector<int8_t> &w, const std::vector<std::vector<int8_t>> &H, std::vector<int> &wm) {
-    int n = w.size();
+std::unordered_map<int, std::vector<std::vector<int>>> HiMCache;
 
-    // Matrix multiplication w * H = wm
-    for (int j = 0; j < n; ++j) {
-        int sum = 0;
-        for (int i = 0; i < n; ++i) {
-            sum += w[i] * H[j][i];
-        }
-        wm[j] = sum;
+std::vector<std::vector<int>> generateHiM(int i, int m) {
+    int key = (i << 16) | m;
+    if (HiMCache.find(key) != HiMCache.end()) {
+        return HiMCache[key];
     }
+
+    int size1 = 1 << (m - i);
+    int size2 = 1 << (i - 1);
+
+    std::vector<std::vector<int>> I1(size1, std::vector<int>(size1, 0));
+    for (int j = 0; j < size1; ++j) I1[j][j] = 1;
+
+    std::vector<std::vector<int>> H = {{1, 1}, {1, -1}};
+    auto HiM = generateKroneckerProduct(I1, H);
+
+    std::vector<std::vector<int>> I2(size2, std::vector<int>(size2, 0));
+    for (int j = 0; j < size2; ++j) I2[j][j] = 1;
+
+    HiMCache[key] = generateKroneckerProduct(HiM, I2);
+    return HiMCache[key];
 }
 
-// Step 3: Find the largest component of the vector
-std::pair<int8_t, std::vector<uint8_t>> findLargestComponent(const std::vector<int> &wm, int m) {
-    int maxPos = 0;
-    int maxVal = std::abs(wm[0]);
-
-    // Find the position j of the largest component of the vector
-    for (size_t i = 1; i < wm.size(); ++i) {
-        if (std::abs(wm[i]) > maxVal) {
-            maxVal = std::abs(wm[i]);
-            maxPos = i;
-        }
-    }
-
-    // Decode the largest component
-    std::vector<uint8_t> binaryIndex(m);
+std::vector<uint8_t> intToUnpackedBitList(int n, int m) {
+    std::vector<uint8_t> bitArray(m, 0);
     for (int i = 0; i < m; ++i) {
-        binaryIndex[i] = (maxPos >> i) & 1;
+        bitArray[i] = (n >> i) & 1;
     }
-
-    int bit = (wm[maxPos] > 0) ? 1 : 0; // Determine the sign of the largest component
-
-    return {bit, binaryIndex};
+    return bitArray;
 }
 
-// Decode a chunk of the received message
-std::vector<uint8_t> decodeChunk(const std::vector<uint8_t> &chunk, int m, const std::vector<std::vector<int8_t>> &H) {
-    // Convert chunk to integer vector and replace 0 with -1
-    std::vector<int8_t> w(chunk.begin(), chunk.end());
-    replaceZeros(w);
 
-    std::vector<int> wm(w.size());
-    multiplyByHadamardMatrix(w, H, wm);
-
-    auto [bit, index] = findLargestComponent(wm, m);
-
-    // Construct the decoded message
-    std::vector<uint8_t> decodedMessage;
-    decodedMessage.push_back(bit);
-    decodedMessage.insert(decodedMessage.end(), index.begin(), index.end());
-
-    return decodedMessage;
+std::vector<int> dotProduct(const std::vector<int>& v1, const std::vector<int>& v2) {
+    if (v1.size() != v2.size()) {
+        throw std::invalid_argument("Vectors must have the same length");
+    }
+    std::vector<int> result(v1.size());
+    for (size_t i = 0; i < v1.size(); ++i) {
+        result[i] = v1[i] * v2[i];
+    }
+    return result;
 }
 
-// Decode the entire received message
-std::vector<uint8_t> decode(const std::vector<uint8_t> &receivedMessage, int m) {
-    int n = 1 << m; // 2^m
-    std::vector<uint8_t> decodedMessage;
+std::vector<int> vectorByMatrix(const std::vector<int>& vector, const std::vector<std::vector<int>>& matrix) {
+    std::vector<int> result(matrix.size());
+    for (size_t i = 0; i < matrix.size(); ++i) {
+        int sum = 0;
+        for (size_t j = 0; j < vector.size(); ++j) {
+            sum += vector[j] * matrix[i][j];
+        }
+        result[i] = sum;
+    }
+    return result;
+}
 
-    // Compute the Hadamard matrix once
-    auto H = hadamardMatrix(m);
+void fastHadamardTransform(const std::vector<uint8_t>& message, int m, std::vector<int>& transformedMessage) {
+    transformedMessage = convertToPm1(message);
 
-    // Split the received message into chunks of size n
-    for (size_t i = 0; i < receivedMessage.size(); i += n) {
-        std::vector<uint8_t> chunk(receivedMessage.begin() + i, receivedMessage.begin() + std::min(i + n, receivedMessage.size()));
+    for (int i = 1; i <= m; ++i) {
+        transformedMessage = vectorByMatrix(transformedMessage, generateHiM(i, m));
+    }
+}
 
-        // Decode each chunk
-        auto decodedChunk = decodeChunk(chunk, m, H);
-        decodedMessage.insert(decodedMessage.end(), decodedChunk.begin(), decodedChunk.end());
+
+std::vector<uint8_t> reverseVector(const std::vector<uint8_t>& vector) {
+    std::vector<uint8_t> reversed(vector.size());
+    std::reverse_copy(vector.begin(), vector.end(), reversed.begin());
+    return reversed;
+}
+
+
+// New decode function
+std::vector<uint8_t> decodeChunks(std::vector<uint8_t> message, int m) {
+    std::vector<int> transformedMessage;
+    fastHadamardTransform(message, m, transformedMessage);
+    
+    // Find the largest component position and sign
+    int largestValue = 0;
+    int position = 0;
+    for (size_t i = 0; i < transformedMessage.size(); ++i) {
+        int absValue = std::abs(transformedMessage[i]);
+        if (absValue > largestValue) {
+            largestValue = absValue;
+            position = i;
+        }
+    }
+    int sign = transformedMessage[position] >= 0 ? 1 : 0;
+
+    // Convert position to binary and reverse it
+    std::vector<uint8_t> positionInBits(m, 0);
+    for (int i = 0; i < m; ++i) {
+        positionInBits[i] = (position >> i) & 1;
     }
 
-    return decodedMessage;
+    // Add the sign bit to the result
+    positionInBits.insert(positionInBits.begin(), sign);
+
+    return positionInBits;
+}
+
+std::vector<uint8_t> decode(std::vector<uint8_t> message, int m) {
+    std::vector<uint8_t> decoded;
+    std::vector<std::vector<uint8_t>> chunks = splitMessageForDecoding(message, 1 << m);
+    for (const auto& chunk : chunks) {
+        std::vector<uint8_t> decodedChunk = decodeChunks(chunk, m);
+        decoded.insert(decoded.end(), decodedChunk.begin(), decodedChunk.end());
+    }
+
+    return decoded;
 }

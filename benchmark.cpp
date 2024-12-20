@@ -59,79 +59,103 @@ void runErrorCorrectionBenchmark(int M, const std::string &text, double q, int &
             ++correctedErrors;
         }
     }
-
 }
+
+
+void runBenchmark(int M, const std::string &text, double q) {
+    const int numRuns = 50;
+    double totalEncodeTime = 0.0, totalDecodeTime = 0.0;
+
+
+    std::cout << "Running benchmark for M = " << M << ", q = " << q << std::endl;
+    for (int i = 0; i < numRuns; ++i) {
+        std::cout << "Run " << i + 1 << std::endl;
+        double encodeTime, decodeTime;
+        runText(M, text, q, encodeTime, decodeTime);
+        totalEncodeTime += encodeTime;
+        totalDecodeTime += decodeTime;
+    }
+    double avgEncodeTime = totalEncodeTime / numRuns;
+    double avgDecodeTime = totalDecodeTime / numRuns;
+
+    std::cout << "M: " << M << ", q: " << q << ", Average Encoding Time: " << avgEncodeTime << ", Average Decoding Time: " << avgDecodeTime << std::endl;
+}
+
 
 int main() {
     std::string text = "testas";
-    const int numRuns = 10; // Number of times to run each benchmark
+    // const int numRuns = 10; // Number of times to run each benchmark
     std::ofstream file("data/benchmark_results.json");
     file << "[\n";
-    int maxM = 25;
+    int M = 25;
+    double q = 0.1;
+    runBenchmark(M, text, q);
 
-    for (int M = 1; M <= maxM; ++M) {
-        for (double q = 0.0; q <= 0.5; q += 0.05) {
-            double totalEncodeTime = 0.0, totalDecodeTime = 0.0;
+    
 
-            for (int i = 0; i < numRuns; ++i) {
-                double encodeTime, decodeTime;
-                std::cout << "Running benchmark for M = " << M << ", q = " << q << ", run " << i + 1 << " of " << numRuns << std::endl;
-                runText(M, text, q, encodeTime, decodeTime);
-                totalEncodeTime += encodeTime;
-                totalDecodeTime += decodeTime;
-            }
+    // for (int M = 1; M <= maxM; ++M) {
+    //     for (double q = 0.0; q <= 0.5; q += 0.05) {
+    //         double totalEncodeTime = 0.0, totalDecodeTime = 0.0;
 
-            double avgEncodeTime = totalEncodeTime / numRuns;
-            double avgDecodeTime = totalDecodeTime / numRuns;
+    //         for (int i = 0; i < numRuns; ++i) {
+    //             double encodeTime, decodeTime;
+    //             std::cout << "Running benchmark for M = " << M << ", q = " << q << ", run " << i + 1 << " of " << numRuns << std::endl;
+    //             runText(M, text, q, encodeTime, decodeTime);
+    //             totalEncodeTime += encodeTime;
+    //             totalDecodeTime += decodeTime;
+    //         }
 
-            file << "  {\n";
-            file << "    \"M\": " << M << ",\n";
-            file << "    \"q\": " << q << ",\n";
-            file << "    \"uzkodavimo_laikas\": " << avgEncodeTime << ",\n";
-            file << "    \"dekodavimo_laikas\": " << avgDecodeTime << "\n";
-            file << "  }";
-            if (!(M == maxM && q >= 0.45)) {
-                file << ",";
-            }
-            file << "\n";
+    //         double avgEncodeTime = totalEncodeTime / numRuns;
+    //         double avgDecodeTime = totalDecodeTime / numRuns;
 
-            // Print progress to the console
-            std::cout << "M: " << M << ", q: " << q << ", Average Encoding Time: " << avgEncodeTime << ", Average Decoding Time: " << avgDecodeTime << std::endl;
-        }
-    }
+    //         file << "  {\n";
+    //         file << "    \"M\": " << M << ",\n";
+    //         file << "    \"q\": " << q << ",\n";
+    //         file << "    \"uzkodavimo_laikas\": " << avgEncodeTime << ",\n";
+    //         file << "    \"dekodavimo_laikas\": " << avgDecodeTime << "\n";
+    //         file << "  }";
+    //         if (!(M == maxM && q >= 0.45)) {
+    //             file << ",";
+    //         }
+    //         file << "\n";
 
-    file << "]";
-    file.close();
+    //         // Print progress to the console
+    //         std::cout << "M: " << M << ", q: " << q << ", Average Encoding Time: " << avgEncodeTime << ", Average Decoding Time: " << avgDecodeTime << std::endl;
+    //     }
+    // }
 
-    // Run error correction benchmark
-    std::ofstream errorFile("data/error_correction_results.json");
-    errorFile << "[\n";
+    // file << "]";
+    // file.close();
 
-    for (int M = 1; M <= maxM; ++M) {
-        for (double q = 0.05; q <= 0.5; q += 0.05) {
-            int totalErrors = 0, correctedErrors = 0;
-            runErrorCorrectionBenchmark(M, text, q, totalErrors, correctedErrors);
+    // // Run error correction benchmark
+    // std::ofstream errorFile("data/error_correction_results.json");
+    // errorFile << "[\n";
 
-            errorFile << "  {\n";
-            errorFile << "    \"M\": " << M << ",\n";
-            errorFile << "    \"q\": " << q << ",\n";
-            errorFile << "    \"total_errors\": " << totalErrors << ",\n";
-            errorFile << "    \"corrected_errors\": " << totalErrors - correctedErrors << "\n";
-            errorFile << "  }";
-            if (!(M == maxM && q >= 0.45)) {
-                errorFile << ",";
-            }
-            errorFile << "\n";
+    // for (int M = 1; M <= maxM; ++M) {
+    //     for (double q = 0.05; q <= 0.5; q += 0.05) {
+    //         int totalErrors = 0, correctedErrors = 0;
+    //         runErrorCorrectionBenchmark(M, text, q, totalErrors, correctedErrors);
 
-            // Print progress to the console
-            std::cout << "M: " << M << ", q: " << q << ", Total Errors: " << totalErrors << ", Corrected Errors: " << totalErrors - correctedErrors << std::endl;
-        }
-    }
+    //         errorFile << "  {\n";
+    //         errorFile << "    \"M\": " << M << ",\n";
+    //         errorFile << "    \"q\": " << q << ",\n";
+    //         errorFile << "    \"total_errors\": " << totalErrors << ",\n";
+    //         errorFile << "    \"corrected_errors\": " << totalErrors - correctedErrors << "\n";
+    //         errorFile << "  }";
+    //         if (!(M == maxM && q >= 0.45)) {
+    //             errorFile << ",";
+    //         }
+    //         errorFile << "\n";
 
-    errorFile << "]";
-    errorFile.close();
+    //         // Print progress to the console
+    //         std::cout << "M: " << M << ", q: " << q << ", Total Errors: " << totalErrors << ", Corrected Errors: " << totalErrors - correctedErrors << std::endl;
+    //     }
+    // }
 
-    std::ofstream errorFile2("data/.json");
+    // errorFile << "]";
+    // errorFile.close();
+
+    // std::ofstream errorFile2("data/.json");
 
     return 0;
 }
