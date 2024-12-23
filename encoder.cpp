@@ -1,42 +1,54 @@
 #include <vector>
-#include "encoder.h"
-#include <iostream>
 #include <cstdint>
+#include <iostream>
 
-// Generate the Reed-Muller generator matrix for RM(1, m)
-void generateReedMullerMatrix(int m, std::vector<std::vector<uint8_t>>& matrix, size_t n) {
+// Recursive encoding function for Reed-Muller RM(1, m)
+void encodeRecursive(const std::vector<uint8_t>& binaryMessage, size_t m, std::vector<uint8_t>& encodedMessage, size_t offset, size_t stride) {
+    if (m == 0) {
+        // Base case: Constant bit
+        encodedMessage[offset] = binaryMessage[0];
+        return;
+    }
 
-    for (size_t i = 0; i < n; i++) {
-        matrix[i][0] = 1; // Set the constant term (first column) to 1
-        for (int j = 1; j <= m; j++) {
-            // Set the j-th column based on the binary representation of i
-            matrix[i][j] = (i >> (j - 1)) & 1;
-        }
+    size_t halfStride = stride / 2;
+
+    // Encode the first half using the first m-1 bits
+    encodeRecursive(binaryMessage, m - 1, encodedMessage, offset, halfStride);
+
+    // Encode the second half by XORing the first half with the next bit
+    for (size_t i = 0; i < halfStride; ++i) {
+        encodedMessage[offset + halfStride + i] = 
+            encodedMessage[offset + i] ^ binaryMessage[m];
     }
 }
 
-// Encode the binary message using Reed-Muller RM(1, m)
-std::vector<uint8_t> encodeMessage(const std::vector<uint8_t>& binaryMessage, int m) {
-    int n = 1 << m; // n = 2^m
-    std::vector<std::vector<uint8_t>> reedMullerMatrix(n, std::vector<uint8_t>(m + 1, 0)); // Initialize the matrix with zeros
-    generateReedMullerMatrix(m, reedMullerMatrix, n);
-    std::vector<uint8_t> encodedMessage;
-    encodedMessage.reserve(binaryMessage.size() * n / (m + 1));
+// Top-level encoding function
+std::vector<uint8_t> encodeMessage(const std::vector<uint8_t>& binaryMessage, size_t m) {
+    size_t n = 1 << m; // n = 2^m
+    size_t messageBitsPerBlock = m + 1;
 
-    for (size_t i = 0; i < binaryMessage.size(); i += m + 1) {
-        std::vector<uint8_t> encodedPart(n, 0); // Reused buffer for each part
-        // Encode directly without needing a separate 'part' vector
-        for (int j = 0; j < n; j++) {
-            for (int k = 0; k <= m; k++) {
-                size_t idx = i + k;
-                uint8_t bit = (idx < binaryMessage.size()) ? binaryMessage[idx] : 0; // Implicit padding
-                encodedPart[j] ^= (reedMullerMatrix[j][k] & bit);
+    // Calculate the total number of blocks, padding the last block if necessary
+    size_t fullBlocks = binaryMessage.size() / messageBitsPerBlock;
+    size_t remainder = binaryMessage.size() % messageBitsPerBlock;
+    size_t totalBlocks = fullBlocks + (remainder > 0 ? 1 : 0);
+
+    // Allocate the encoded message
+    std::vector<uint8_t> encodedMessage(totalBlocks * n, 0);
+
+    // Process each block
+    for (size_t block = 0; block < totalBlocks; ++block) {
+        std::vector<uint8_t> messageBlock(m + 1, 0);
+        // Copy the block's message bits, padding with 0 if necessary
+        for (size_t i = 0; i < m + 1; ++i) {
+            size_t bitIndex = block * messageBitsPerBlock + i;
+            if (bitIndex < binaryMessage.size()) {
+                messageBlock[i] = binaryMessage[bitIndex];
             }
         }
 
-        encodedMessage.insert(encodedMessage.end(), encodedPart.begin(), encodedPart.end());
+        // Encode the block recursively
+        encodeRecursive(messageBlock, m, encodedMessage, block * n, n);
     }
 
     return encodedMessage;
 }
-

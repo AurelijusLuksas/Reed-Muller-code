@@ -16,7 +16,7 @@ void runText(int m, std::string text, float q) {
     // Convert text to binary
     std::vector<uint8_t> binaryMessage = stringToBinary(text);
     std::cout << "--------------------------------------------------" << std::endl;
-    std::cout << "Dvejetaine zinute: ";
+    std::cout << "Binary message: ";
     for (size_t i = 0; i < binaryMessage.size(); i++) {
         std::cout << static_cast<int>(binaryMessage[i]); // Cast to int for correct display
         if ((i + 1) % 4 == 0) {
@@ -35,7 +35,7 @@ void runText(int m, std::string text, float q) {
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
 
-    std::cout << "Uzkodavimas uztruko: " << duration.count() << " sekundes" << std::endl << std::endl;
+    std::cout << "Encoding took: " << duration.count() << " seconds" << std::endl << std::endl;
 
     std::vector<uint8_t> corruptedMessage = introduceErrors(codedMessage, q);
 
@@ -52,7 +52,7 @@ void runText(int m, std::string text, float q) {
     auto decodeEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> decodeDuration = decodeEnd - decodeStart;
     decodedMessage.resize(binaryMessage.size());
-    std::cout << "Dekoduota dvejetaine zinute: ";
+    std::cout << "Decoded binary message: ";
     for (size_t i = 0; i < decodedMessage.size(); i++) {
         std::cout << static_cast<int>(decodedMessage[i]); // Cast to int for correct display
         if ((i + 1) % 4 == 0) {
@@ -60,13 +60,13 @@ void runText(int m, std::string text, float q) {
         }
     }
 
-    std::cout << "\nDekodavimas uztruko: " << decodeDuration.count() << " sekundes" << std::endl;
+    std::cout << "\nDecoding took: " << decodeDuration.count() << " seconds." << std::endl;
 
     std::string decodedText = binaryToString(decodedMessage);
     std::cout << "--------------------------------------------------" << std::endl;
-    std::cout << "Tekstas be uzkodavimo: " << TextWithoutEncoding << std::endl;
+    std::cout << "Text without encoding: " << TextWithoutEncoding << std::endl;
     std::cout << std::endl;
-    std::cout << "Dekoduotas tesktas: " << decodedText << std::endl;
+    std::cout << "Decoded text: " << decodedText << std::endl;
     std::cout << "--------------------------------------------------" << std::endl;
 
     binaryMessage.clear();
@@ -78,7 +78,7 @@ void runText(int m, std::string text, float q) {
 
 void runVector(int m, std::vector<uint8_t> vector, float q) {
     std::cout << "--------------------------------------------------" << std::endl;
-    std::cout << "Pradinis vektorius: ";
+    std::cout << "Starting vector: ";
     for (size_t i = 0; i < vector.size(); i++) {
         std::cout << static_cast<int>(vector[i]);
         if ((i + 1) % 4 == 0) {
@@ -92,8 +92,8 @@ void runVector(int m, std::vector<uint8_t> vector, float q) {
     std::vector<uint8_t> codedMessage = encodeMessage(vector, m);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
-    std::cout << "Uzkodavimas uztruko: " << duration.count() << " sekundes" << std::endl;
-    std::cout << "Uzkoduoto vektorio ilgis: " << codedMessage.size() << std::endl;
+    std::cout << "Encoding took: " << duration.count() << " seconds" << std::endl;
+    std::cout << "Encoded vector length: " << codedMessage.size() << std::endl;
 
     std::vector<uint8_t> corruptedMessage = introduceErrors(codedMessage, q);
     int totalErrorsBefore = 0;
@@ -104,17 +104,9 @@ void runVector(int m, std::vector<uint8_t> vector, float q) {
         }
     }
 
-    // std::cout <<"Uzkoduotas vektorius: ";
-    // for (size_t i = 0; i < codedMessage.size(); i++) {
-    //     std::cout << static_cast<int>(codedMessage[i]);
-    //     if ((i + 1) % 4 == 0) {
-    //         std::cout << " ";
-    //     }
-    // }
-
     std::cout << std::endl;
 
-    std::cout << "Is kanalo gautas vektorius: ";
+    std::cout << "Vector received from channel: ";
     for (size_t i = 0; i < corruptedMessage.size(); i++) {
         std::cout << static_cast<int>(corruptedMessage[i]);
         if ((i + 1) % 4 == 0) {
@@ -122,7 +114,7 @@ void runVector(int m, std::vector<uint8_t> vector, float q) {
         }
     }
     std::cout << std::endl;
-    std::cout << "Klaidingu bit'u pozicijos:  ";
+    std::cout << "Positions of erroneous bits:  ";
     for (size_t i = 0; i < corruptedMessage.size(); i++) {
         if (codedMessage[i] != corruptedMessage[i]) {
             std::cout << "^";
@@ -134,11 +126,11 @@ void runVector(int m, std::vector<uint8_t> vector, float q) {
         }
     }
     std::cout << std::endl;
-    std::cout << "Ar norite pakeisti klaidinga vektoriu? (y/n): ";
+    std::cout << "Do you want to change incorrect vector? (y/n): ";
     char choice;
     std::cin >> choice;
     if (choice == 'y') {
-        std::cout << "Iveskite klaidinga vektoriu: ";
+        std::cout << "Input the incorrect vector: ";
         std::string input;
         std::cin >> input;
         corruptedMessage.resize(input.size());
@@ -153,7 +145,7 @@ void runVector(int m, std::vector<uint8_t> vector, float q) {
     auto decodeEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> decodeDuration = decodeEnd - decodeStart;
     decodedMessage.resize(vector.size());
-    std::cout << "Dekoduotas vektorius: ";
+    std::cout << "Decoded vector: ";
     for (size_t i = 0; i < decodedMessage.size(); i++) {
         std::cout << static_cast<int>(decodedMessage[i]);
         if ((i + 1) % 4 == 0) {
@@ -161,7 +153,7 @@ void runVector(int m, std::vector<uint8_t> vector, float q) {
         }
     }
     std::cout << std::endl;
-    std::cout << "Dekodavimas uztruko: " << decodeDuration.count() << " sekundes" << std::endl;
+    std::cout << "Decoding took: " << decodeDuration.count() << " seconds" << std::endl;
     std::cout << std::endl;
 
     std::cout << "--------------------------------------------------" << std::endl;
@@ -176,21 +168,21 @@ int main() {
     std::string input;              
     std::string input2;
     while (true) {
-        std::cout << "[1] Uzkoduoti vektoriu\n";
-        std::cout << "[2] Uzkoduoti teksta\n";
-        std::cout << "[3] Uzkoduoti nuotrauka\n";
-        std::cout << "[4] Isjungti\n";
+        std::cout << "[1] Encode vector\n";
+        std::cout << "[2] Encode text\n";
+        std::cout << "[3] Encode photo\n";
+        std::cout << "[4] Quit\n";
 
         int choice;
         std::cin >> choice;
         std::string line;
         switch (choice) {
             case 1:
-            std::cout << "Iveskite m: ";
+            std::cout << "Input m: ";
             while (true) {
                 std::cin >> m;
                 if (std::cin.fail()) {
-                    std::cout << "Neteisinga ivestis. Iveskite sveikaji skaiciu: ";
+                    std::cout << "Incorrect input. Please enter an integer: ";
                     std::cin.clear(); 
                     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); 
                 } else {
@@ -199,7 +191,7 @@ int main() {
             }
 
             vector.resize(m + 1);
-            std::cout << "Iveskite vektoriu ilgio " << m + 1 << ": ";
+            std::cout << "Input vector length of " << m + 1 << ": ";
             std::cin >> input;
 
             for (int i = 0; i < m + 1; ++i) {
@@ -207,7 +199,7 @@ int main() {
             }
 
 
-            std::cout << "Iveskite klaidu procenta: ";
+            std::cout << "Input error quantity (0 - 1): ";
             std::cin >> input2;
             std::replace(input2.begin(), input2.end(), ',', '.');
 
@@ -218,11 +210,11 @@ int main() {
             break;
             case 2:
             // Encode text
-            std::cout << "Iveskite m: ";
+            std::cout << "Input m: ";
             while (true) {
                 std::cin >> m;
                 if (std::cin.fail()) {
-                    std::cout << "Neteisinga ivestis. Iveskite sveikaji skaiciu: ";
+                    std::cout << "Incorrect input. Please enter an integer: ";
                     std::cin.clear(); 
                     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); 
                 } else {
@@ -230,7 +222,7 @@ int main() {
                 }
             }
             
-            std::cout << "Iveskite zinute (iveskite END kad baigti): ";
+            std::cout << "Input text (write END to stop input): ";
             std::cin.ignore(); // Clear the input buffer
             text.clear();
             while (true) {
@@ -241,7 +233,7 @@ int main() {
                 text += line + "\n";
             }
 
-            std::cout << "Iveskite klaidu procenta: ";
+            std::cout << "Input error quantity (0 - 1): ";
             std::cin >> input2;
             std::replace(input2.begin(), input2.end(), ',', '.');
 
@@ -252,11 +244,11 @@ int main() {
             break;
             case 3:
             // Encode picture
-            std::cout << "Iveskite m: ";
+            std::cout << "Input m: ";
             while (true) {
                 std::cin >> m;
                 if (std::cin.fail()) {
-                    std::cout << "Neteisinga ivestis. Iveskite sveikaji skaiciu: ";
+                    std::cout << "Incorrect input. Please enter an integer: ";
                     std::cin.clear(); 
                     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); 
                 } else {
@@ -264,10 +256,10 @@ int main() {
                 }
             }
 
-            std::cout << "Iveskite paveikslelio pavadinima: ";
+            std::cout << "Input photo name (.bmp): ";
             std::cin >> filename;
 
-            std::cout << "Iveskite klaidu procenta: ";
+            std::cout << "Input error quantity (0 - 1): ";
             std::cin >> input2;
             std::replace(input2.begin(), input2.end(), ',', '.');
 
@@ -278,10 +270,10 @@ int main() {
             break;
             case 4:
             // Exit
-            std::cout << "Programa isjungiama." << std::endl;
+            std::cout << "Quitting...." << std::endl;
             return 0;
             default:
-            std::cout << "Neteisingas pasirinkimas. Bandykite is naujo." << std::endl;
+            std::cout << "Incorrect choice. Please try again." << std::endl;
             break;
         }
     }

@@ -4,7 +4,7 @@
 #include <vector>
 #include <cstdint>
 
-void generateReedMullerMatrix(int m, std::vector<std::vector<uint8_t>>& matrix, size_t n);
-std::vector<uint8_t> encodeMessage(const std::vector<uint8_t>& binaryMessage, int m);
+void encodeRecursive(const std::vector<uint8_t>& binaryMessage, size_t m, std::vector<uint8_t>& encodedMessage, size_t offset, size_t stride);
+std::vector<uint8_t> encodeMessage(const std::vector<uint8_t>& binaryMessage, size_t m);
 
 #endif // ENCODER_H

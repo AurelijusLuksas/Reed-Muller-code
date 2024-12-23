@@ -21,13 +21,13 @@ void runPicture(int m, std::string filename, float q) {
     std::string inputFilePath = "photos/" + filename;
     unsigned char* pixelData = stbi_load(inputFilePath.c_str(), &width, &height, &channels, 0);
     if (!pixelData) {
-        std::cerr << "Error: Nepavyko atidaryti failo " << filename << std::endl;
+        std::cerr << "Error: Couldn't open the file. " << filename << std::endl;
         return;
     }
 
     // Print out image width and height
-    std::cout << "Nuotraukos plotis: " << width << std::endl;
-    std::cout << "Nuotraukos aukstis: " << height << std::endl;
+    std::cout << "Image width: " << width << std::endl;
+    std::cout << "Image height: " << height << std::endl;
 
 
     // Convert pixel data to binary
@@ -64,7 +64,7 @@ void runPicture(int m, std::string filename, float q) {
 
     // Write corrupted pixel data back to BMP file
     if (!stbi_write_bmp(corruptedFilePath.c_str(), width, height, channels, corruptedPixelData.data())) {
-        std::cerr << "Error: Nepavyko sukurti isvesties failo" << std::endl;
+        std::cerr << "Error: Couldn't create output file." << std::endl;
         stbi_image_free(pixelData);
         return;
     }
@@ -73,7 +73,7 @@ void runPicture(int m, std::string filename, float q) {
     std::string openCommand = "start " + corruptedFilePath;
     system(openCommand.c_str());
 
-    std::cout << "Tik per kanala siusta nuotrauka issaugota kaip " << corruptedFilename << std::endl;
+    std::cout << "Through channel sent picture save as " << corruptedFilename << std::endl;
     
 
 
@@ -82,7 +82,7 @@ void runPicture(int m, std::string filename, float q) {
     std::vector<uint8_t> encodedData = encodeMessage(binaryData, m);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
-    std::cout << "Uzkodavimas truko " << duration.count() << " sekundes." << std::endl;
+    std::cout << "Encoding took " << duration.count() << " seconds." << std::endl;
 
     // Introduce errors
     std::vector<uint8_t> corruptedData = introduceErrors(encodedData, q);
@@ -99,7 +99,7 @@ void runPicture(int m, std::string filename, float q) {
     std::vector<uint8_t> decodedData = decode(corruptedData, m);
     auto decodeEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> decodeDuration = decodeEnd - decodeStart;
-    std::cout << "Dekodavimas truko  " << decodeDuration.count() << " sekundes." << std::endl;
+    std::cout << "Decoding took " << decodeDuration.count() << " seconds." << std::endl;
 
     int totalErrorsAfter = 0;
     for (size_t i = 0; i < binaryData.size(); ++i) {
@@ -133,7 +133,7 @@ void runPicture(int m, std::string filename, float q) {
 
     // Write corrected pixel data back to BMP file
     if (!stbi_write_bmp(outputFilePath.c_str(), width, height, channels, correctedPixelData.data())) {
-        std::cerr << "Error: Nepavyko sukurti isvesties failo." << std::endl;
+        std::cerr << "Error: Couldn't create output file." << std::endl;
         stbi_image_free(pixelData);
         return;
     }
@@ -142,10 +142,10 @@ void runPicture(int m, std::string filename, float q) {
     openCommand = "start " + outputFilePath;
     system(openCommand.c_str());
 
-    std::cout << "Is viso buta klaidu: " << totalErrorsBefore << std::endl;
-    std::cout << "Istaisyta klaidu: " << totalErrorsBefore - totalErrorsAfter << std::endl;
+    std::cout << "Total errors: " << totalErrorsBefore << std::endl;
+    std::cout << "Corrected errors: " << totalErrorsBefore - totalErrorsAfter << std::endl;
 
     stbi_image_free(pixelData);
-    std::cout << "Koduota ir dekoduota nuotrauka issaugota kaip " << outputFilename << std::endl;
+    std::cout << "Encoded and decoded picture saved as " << outputFilename << std::endl;
     std::cout << "--------------------------------------------------" << std::endl;
 }
