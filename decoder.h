@@ -4,11 +4,9 @@
 #include <vector>
 #include <cstdint>
 
-void fastHadamardTransformsRecursive(std::vector<int>& vec, size_t start, size_t end);
-std::vector<int> fastHadamardTransforms(const std::vector<uint8_t>& message, int m);
-std::vector<uint8_t> reverseVector(const std::vector<uint8_t>& vector);
-std::vector<uint8_t> decodeChunks(std::vector<uint8_t> message, int m);
+void fastHadamardTransforms(std::vector<int>& vec);
+std::vector<uint8_t> decodeChunks(const std::vector<uint8_t>& message, int m);
 std::vector<std::vector<uint8_t>> splitMessageForDecoding(const std::vector<uint8_t>& message, size_t chunkSize);
-std::vector<uint8_t> decode(std::vector<uint8_t> message, int m);
+std::vector<uint8_t> decode(const std::vector<uint8_t>& message, int m);
 
 #endif // DECODERRECURSIVE_H
